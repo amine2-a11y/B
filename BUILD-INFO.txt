@@ -1,0 +1,8 @@
+AMINE PS4 9.00 LITE — BUILD NOTES
+
+Scope: firmware 9.00 profile only. Other firmware folders and root multi-version launcher removed.
+Memory-oriented changes: removed unused UI/theme assets, music, duplicate backgrounds, source-only folders and non-runtime cache entries; removed automatic exploit retry and automatic cache-error reload loops.
+Preserved: original 9.00 exploit scripts, offsets, modules, AIO patch binary, GoldHEN binary and license files. Exploit internals and payload binaries were not modified.
+Offline: root AppCache manifest includes the local launcher, 9.00 runtime modules and payload files.
+Validation: archive integrity and manifest path checks performed; JavaScript syntax checked where Node.js is available.
+Limit: no physical PS4 execution test was possible. The browser memory warning may still originate inside the exploit/runtime or browser state; this package cannot guarantee its removal.
