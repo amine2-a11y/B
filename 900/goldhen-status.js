@@ -9,6 +9,6 @@
     document.documentElement.appendChild(box); return box;
   }
   function show(text,ok){ var e=ensure(); e.textContent=text; e.style.display='block'; e.style.borderColor=ok?'rgba(80,220,130,.7)':'rgba(255,100,100,.7)'; clearTimeout(timer); timer=setTimeout(function(){e.style.display='none';},5000); }
-  window.__goldhenStatusSuccess=function(){show('تم التفعيل بنجاح',true)};
+  window.__goldhenStatusSuccess=function(){show('تم إرسال GoldHEN',true)};
   window.__goldhenStatusFailure=function(){show('فشل التفعيل',false)};
 })();

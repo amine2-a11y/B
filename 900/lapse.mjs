@@ -1817,57 +1817,68 @@ function array_from_address(addr, size) {
 
 function PayloadLoader(Pfile)
 {
-    var loader_addr = chain.sysp(
-  'mmap',
-  new Int(0, 0),                         
-  0x1000,                               
-  PROT_READ | PROT_WRITE | PROT_EXEC,    
-  0x41000,                              
-  -1,
-  0
-);
-
- var tmpStubArray = array_from_address(loader_addr, 1);
- tmpStubArray[0] = 0x00C3E7FF;
-
- var req = new XMLHttpRequest();
- req.responseType = "arraybuffer";
- req.open('GET',Pfile);
- req.send();
- req.onreadystatechange = function () {
-  if (req.readyState == 4) {
-   var PLD = req.response;
-   var payload_buffer = chain.sysp('mmap', 0, 0x300000, 7, 0x41000, -1, 0);
-   var pl = array_from_address(payload_buffer, PLD.byteLength*4);
-   var padding = new Uint8Array(4 - (req.response.byteLength % 4) % 4);
-   var tmp = new Uint8Array(req.response.byteLength + padding.byteLength);
-   tmp.set(new Uint8Array(req.response), 0);
-   tmp.set(padding, req.response.byteLength);
-   var shellcode = new Uint32Array(tmp.buffer);
-   pl.set(shellcode,0);
-   var pthread = malloc(0x10);
-   
-    call_nze(
-        'pthread_create',
-        pthread,
-        0,
-        loader_addr,
-        payload_buffer,
-    );	
-   }
- };
-
-
+    // Resolve only after the local payload has been fetched and dispatched.
+    // This lets AIO and GoldHEN load in sequence instead of racing each other.
+    return new Promise((resolve, reject) => {
+        let settled = false;
+        const req = new XMLHttpRequest();
+        req.responseType = "arraybuffer";
+        req.open('GET', Pfile, true);
+        req.timeout = 15000;
+        req.onload = function () {
+            if (settled) return;
+            if ((req.status !== 200 && req.status !== 0) || !req.response || req.response.byteLength === 0) {
+                settled = true;
+                reject(new Error('Payload unavailable: ' + Pfile + ' (HTTP ' + req.status + ')'));
+                return;
+            }
+            try {
+                const loader_addr = chain.sysp(
+                    'mmap', new Int(0, 0), 0x1000,
+                    PROT_READ | PROT_WRITE | PROT_EXEC, 0x41000, -1, 0
+                );
+                const tmpStubArray = array_from_address(loader_addr, 1);
+                tmpStubArray[0] = 0x00C3E7FF;
+                const payloadBytes = new Uint8Array(req.response);
+                const payload_buffer = chain.sysp('mmap', 0, 0x300000, 7, 0x41000, -1, 0);
+                const wordCount = Math.ceil(payloadBytes.byteLength / 4);
+                const pl = array_from_address(payload_buffer, wordCount);
+                const padded = new Uint8Array(wordCount * 4);
+                padded.set(payloadBytes);
+                pl.set(new Uint32Array(padded.buffer), 0);
+                const pthread = malloc(0x10);
+                call_nze('pthread_create', pthread, 0, loader_addr, payload_buffer);
+                settled = true;
+                resolve();
+            } catch (error) {
+                settled = true;
+                reject(error);
+            }
+        };
+        req.onerror = function () {
+            if (!settled) { settled = true; reject(new Error('Network error loading ' + Pfile)); }
+        };
+        req.ontimeout = function () {
+            if (!settled) { settled = true; reject(new Error('Timed out loading ' + Pfile)); }
+        };
+        req.send();
+    });
 }
 
-kexploit().then(() => {
-
-//Load ABC fix as a regular Payload
-setTimeout(PayloadLoader("aio_patches.bin"),500);
-log("AIO Fixes Applied.!");
-//Load GoldHEN :)
-setTimeout(PayloadLoader("goldhen.bin"),500);
-log("GoldHEN Loaded.!");
-if (typeof window.__goldhenStatusSuccess === "function") window.__goldhenStatusSuccess();
-
-}).catch(() => { if (typeof window.__goldhenStatusFailure === "function") window.__goldhenStatusFailure(); });
+kexploit().then(async () => {
+    try {
+        await PayloadLoader("aio_patches.bin");
+        log("AIO payload dispatched.");
+        // Give the AIO patch payload a short head start before GoldHEN.
+        await new Promise(resolve => setTimeout(resolve, 750));
+        await PayloadLoader("goldhen.bin");
+        log("GoldHEN payload dispatched.");
+        if (typeof window.__goldhenStatusSuccess === "function") window.__goldhenStatusSuccess();
+    } catch (error) {
+        log("Payload loading failed: " + error);
+        if (typeof window.__goldhenStatusFailure === "function") window.__goldhenStatusFailure();
+    }
+}).catch((error) => {
+    log("Exploit failed: " + error);
+    if (typeof window.__goldhenStatusFailure === "function") window.__goldhenStatusFailure();
+});
