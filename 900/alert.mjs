@@ -1,79 +1,49 @@
 /* Copyright (C) 2023-2025 anonymous
 
-This file is part of PSFree.
+This file is part of PSFree and is distributed under the GNU Affero General
+Public License, version 3 or (at your option) any later version.
+*/
 
-PSFree is free software: you can redistribute it and/or modify
-it under the terms of the GNU Affero General Public License as
-published by the Free Software Foundation, either version 3 of the
-License, or (at your option) any later version.
-
-PSFree is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Affero General Public License for more details.
-
-You should have received a copy of the GNU Affero General Public License
-along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
-
-// We can't just open a console on the ps4 browser, make sure the errors thrown
-// by our program are alerted.
-
-// We don't use a custom logging function to avoid a dependency on a logging
-// module since we want this file to stand alone. We don't want to copy the
-// log function here either for the sake avoiding dependencies since using
-// alert() is good enough.
-
-// We log the line and column numbers as well since some exceptions (like
-// SyntaxError) do not show it in the stack trace.
-
-let retryCount = Number(sessionStorage.getItem('psfree_retry_count') || '0');
-
-function isRaceError(reason) {
-    const text = String(reason || '');
-    return /multiple blurs|blurs before pop/i.test(text);
+// Keep this file dependency-free so module import failures are visible.
+function describeError(reason) {
+    if (reason == null) return 'Unknown error';
+    if (typeof reason === 'string') return reason;
+    return reason.message || String(reason);
 }
 
-function retryRace(reason) {
-    if (retryCount >= 1 || !isRaceError(reason)) return false;
-    retryCount++;
-    sessionStorage.setItem('psfree_retry_count', String(retryCount));
-    setTimeout(() => location.reload(), 350);
-    return true;
+function showError(kind, reason, event) {
+    const details = describeError(reason);
+    const source = reason && (reason.sourceURL || reason.fileName)
+        || event && (event.filename || event.source)
+        || '';
+    const line = reason && (reason.line || reason.lineNumber)
+        || event && event.lineno
+        || '';
+    const column = reason && (reason.column || reason.columnNumber)
+        || event && event.colno
+        || '';
+    const stack = reason && reason.stack || '';
+
+    alert(
+        kind + '\\n'
+        + details + '\\n'
+        + source + ':' + line + ':' + column + '\\n'
+        + stack
+    );
 }
 
 addEventListener('unhandledrejection', event => {
-    const reason = event.reason;
-    if (retryRace(reason)) {
-        event.preventDefault();
-        return;
-    }
-    alert(
-        'Unhandled rejection\n'
-        + `${reason}\n`
-        + `${reason?.sourceURL || ''}:${reason?.line || ''}:${reason?.column || ''}\n`
-        + `${reason?.stack || ''}`
-    );
+    showError('Unhandled rejection', event.reason, event);
     event.preventDefault();
 });
 
 addEventListener('error', event => {
-    const reason = event.error;
-    const text = String(reason || '');
-    // The PSFree 9.00 UAF race can occasionally hit the same blur twice.
-    // Retry once automatically; after that, keep the diagnostic visible.
-    if (retryRace(reason)) {
-        return true;
-    }
-    sessionStorage.removeItem('psfree_retry_count');
-    alert(
-        'Unhandled error\n'
-        + `${reason}\n`
-        + `${reason.sourceURL}:${reason.line}:${reason.column}\n`
-        + `${reason.stack}`
-    );
+    showError('Unhandled error', event.error || event.message, event);
+    // Returning true suppresses the browser's duplicate default error report.
     return true;
 });
 
-// we have to dynamically import the program if we want to catch its syntax
-// errors
-import('./psfree.mjs');
+// Dynamic import allows this file to catch errors from the main module.
+import('./psfree.mjs').catch(error => {
+    showError('PSFree module failed to start', error, null);
+});
