@@ -21,3 +21,6 @@ Not verified:
 - The payload loader's runtime sequencing.
 
 This archive is a statically audited build, not a guarantee of successful jailbreak or console stability.
+
+Stability wrapper revision: sequential payload loading, XHR validation, delayed success reporting.
+No exploit internals or binary payloads modified.
