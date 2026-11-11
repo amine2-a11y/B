@@ -1,12 +1,7 @@
-AMINE PS4 9.00 PRO LITE — STABILITY REVISION
+AMINE PS4 9.00 AUTOSTART FIX
 
-Scope: firmware 9.00 only. Original exploit algorithms, offsets and binary payloads are preserved.
-Stability changes in this revision:
-- Fixed payload scheduling: the previous setTimeout(PayloadLoader(...), delay) form executed immediately and launched AIO and GoldHEN requests concurrently.
-- Payload requests now validate non-empty responses and HTTP status, have a timeout, and report fetch/dispatch errors.
-- AIO payload dispatch is awaited before GoldHEN dispatch, with a short settling delay between them.
-- Corrected the offline cache manifest by removing a reference to a missing 900/background.jpg and listing the actual local runtime dependencies.
-- Automatic retry/reload loops remain disabled to avoid repeated memory pressure.
-
-Validation performed: JavaScript syntax check, local import/path checks, cache-manifest path checks, and ZIP CRC integrity.
-Not verified: real PS4 browser execution, kernel exploit reliability, payload completion, or elimination of the browser's system-memory warning. The on-screen success state means the payload was dispatched, not independently verified as running.
+Scope: PS4 firmware 9.00 only.
+Fix: restored the original module-script entrypoint (alert.mjs -> psfree.mjs) so exploit initialization begins automatically when 900/index.html loads. Removed the click-dependent dynamic-import launcher that prevented automatic start. Root page now forwards automatically to the 9.00 host.
+Offline: root AppCache manifest enumerates all files in the preserved 9.00 runtime, including nested modules, cache page, GoldHEN payload, AIO patch data and supporting files.
+Stability: no automatic retry/reload loop is added. Original exploit source and binary payloads are preserved unmodified. Cache errors are displayed for manual recovery.
+Validation: ZIP CRC, all AppCache paths, JS module syntax and key file presence checked. No physical PS4 execution test was possible.

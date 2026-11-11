@@ -1,18 +1,36 @@
 CACHE MANIFEST
 
-# AMINE PS4 9.00 PRO LITE · stability build
+# AMINE PS4 9.00 AUTOSTART FIX
 CACHE:
 index.html
 background.jpg
-900/index.html
-900/cache.html
-900/alert.mjs
-900/config.mjs
-900/lapse.mjs
-900/goldhen-status.js
-900/psfree.mjs
+900/AIO_Fix_Temp/patch_aio.c
+900/AIO_Fix_Temp/vfs_aio2_pdtor.c
+900/COPYING
+900/LICENSE
+900/README.md
+900/STABILITY_CHECK.md
+900/about.html
 900/aio_patches.bin
+900/alert.mjs
+900/background.jpg
+900/cache.html
+900/config.mjs
+900/fonts/FONTS.LICENSE
+900/fonts/LiberationMono-Regular.ttf
+900/fonts/README.txt
+900/goldhen-status.js
 900/goldhen.bin
+900/index.html
+900/kpatch/900.c
+900/kpatch/900.d
+900/kpatch/900.elf
+900/kpatch/900.o
+900/kpatch/Makefile
+900/kpatch/script.ld
+900/kpatch/types.h
+900/kpatch/utils.h
+900/lapse.mjs
 900/module/chain.mjs
 900/module/constants.mjs
 900/module/int64.mjs
@@ -22,7 +40,11 @@ background.jpg
 900/module/rw.mjs
 900/module/utils.mjs
 900/module/view.mjs
+900/offline.appcache
+900/psfree.mjs
+900/psfree_lapse.cache
 900/rop/900.mjs
+900/send.mjs
 
 NETWORK:
 *
