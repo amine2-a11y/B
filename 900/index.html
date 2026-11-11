@@ -14,7 +14,13 @@ body{
 }
 body:before{
   content:"";position:fixed;inset:0;pointer-events:none;
-  background:linear-gradient(180deg,rgba(0,3,10,.18),rgba(0,3,10,.76));
+  background:
+    radial-gradient(circle at 50% 38%,rgba(0,116,255,.18),transparent 34%),
+    linear-gradient(180deg,rgba(0,3,10,.16),rgba(0,3,10,.78));
+}
+body:after{
+  content:"";position:fixed;inset:0;pointer-events:none;
+  background:linear-gradient(115deg,transparent 38%,rgba(0,126,255,.07) 50%,transparent 62%);
 }
 .page{position:relative;z-index:1;width:100%;height:100%;display:flex;flex-direction:column;align-items:center;padding:5vh 18px 3vh}
 .title{text-align:center;margin:0 0 7px;font-size:clamp(21px,3vw,32px);font-weight:700;letter-spacing:.08em;text-shadow:0 0 24px rgba(0,130,255,.35)}
@@ -76,8 +82,8 @@ if (window.applicationCache && window.applicationCache.status=='0') {
 
   <div class="action">
     <div class="bolt">ϟ</div>
-    <button type="button" id="startBtn">START 9.00</button>
-    <div class="small">PS4 FIRMWARE 9.00 ONLY · MANUAL START</div>
+    <button type="button" disabled>AUTO START ON PAGE LOAD</button>
+    <div class="small">PS4 9.00 ONLY · AUTOMATIC LAUNCH</div>
   </div>
 
   <div class="status"><span class="dot"></span>STATUS: <b>READY</b></div>
@@ -89,6 +95,6 @@ if (window.applicationCache && window.applicationCache.status=='0') {
 
   <div class="footer">PSFree-Lapse · PS4 9.00 · JAILBREAK AMINE PS4</div>
 </div>
-<script>document.getElementById("startBtn").addEventListener("click",function(){this.disabled=true;this.textContent="STARTING…";document.querySelector(".status b").textContent="RUNNING";import("./alert.mjs").catch(function(e){this.disabled=false;this.textContent="START 9.00";alert("Launch error: "+e);}.bind(this));});</script>
+<script type="module" src="./alert.mjs"></script>
 </body>
 </html>
